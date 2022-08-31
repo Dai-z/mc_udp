@@ -38,6 +38,7 @@ int main(int argc, char * argv[])
                                                                         << ")")
       }
       control.id = sensors.id;
+      // TODO: Call algorithm and generate control messages
       prev_id = control.id;
       // for(const auto & fs : client.sensors().fsensors)
       //{
