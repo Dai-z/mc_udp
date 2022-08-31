@@ -1,0 +1,17 @@
+<package format="2">
+  <name>mc_udp_ros</name>
+  <version>1.0.0</version>
+  <description>
+  This package receives ros topics and send udp package to mc_udp.
+  </description>
+  <maintainer email="runtime.error@qq.com">Dacoim</maintainer>
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>roscpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+
+  <exec_depend>message_runtime</exec_depend>
+</package>

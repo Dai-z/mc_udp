@@ -17,8 +17,8 @@ option(BUILD_TESTING "Build unit tests" OFF)
 option(BUILD_MC_RTC_CLIENT "Build mc_rtc client" ON)
 option(BUILD_OPENRTM_SERVER "Build OpenRTM server component" OFF)
 option(BUILD_LEGACY_OPENRTM_SERVER "Build OpenRTM server with c++0x" OFF)
-option(BUILD_DUMMY_CLIENT "Build dummy client" OFF)
-option(BUILD_DUMMY_SERVER "Build dummy server" OFF)
+option(BUILD_DUMMY_CLIENT "Build dummy client" ON)
+option(BUILD_DUMMY_SERVER "Build dummy server" ON)
 
 add_subdirectory(src)
 
