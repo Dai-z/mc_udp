@@ -14,7 +14,8 @@ void leftFootCallback(const geometry_msgs::WrenchStamped::ConstPtr & msg);
 void rightFootCallback(const geometry_msgs::WrenchStamped::ConstPtr & msg);
 void initSensors();
 
-std::unique_ptr<mc_udp::Server> server;
+std::unique_ptr<mc_udp::Server> Server;
+double Reading[6];
 
 int main(int argc, char * argv[])
 {
@@ -24,30 +25,31 @@ int main(int argc, char * argv[])
   int port = 4444;
   nh.getParam("port", port);
   ROS_INFO("Start sensor server at port: %d", port);
-  server = std::make_unique<mc_udp::Server>(port);
+  Server = std::make_unique<mc_udp::Server>(port);
   initSensors();
 
-  auto imu_sub = nh.subscribe("/real/imu", 10, imuCallback);
-  auto joint_sub = nh.subscribe("/real/joint_states", 10, jointCallback);
-  auto lft_sub = nh.subscribe("/real/force/LeftFootForceSensor", 10, leftFootCallback);
-  auto rft_sub = nh.subscribe("/real/force/RightFootForceSensor", 10, rightFootCallback);
-  ros::spin();
+  auto imu_sub = nh.subscribe("/real/imu", 1, imuCallback);
+  auto joint_sub = nh.subscribe("/real/joint_states", 1, jointCallback);
+  auto lft_sub = nh.subscribe("/real/force/LeftFootForceSensor", 1, leftFootCallback);
+  auto rft_sub = nh.subscribe("/real/force/RightFootForceSensor", 1, rightFootCallback);
 
+  // TODO: check main loop logic.
+  // TODO: check when to send sensor data. Wait until collected? How to deal with missing data?
+  auto & sensors = Server->sensors().messages["dummy"];
   size_t control_id = 0;
-  auto & sensors = server->sensors().messages["ros"];
-  while(1)
+  while(ros::ok())
   {
+    ros::spinOnce();
     auto start_t = std::chrono::system_clock::now();
-    server->send();
+    Server->send();
     auto send_t = std::chrono::system_clock::now();
-    if(server->recv())
+    if(Server->recv())
     {
-      const auto & control = server->control().messages.at("ros");
+      const auto & control = Server->control().messages.at("dummy");
       control_id = control.id;
       if(control.id != sensors.id - 1)
       {
-        std::cout << "[ros] Server control id " << control.id << " does not match sensors id " << sensors.id
-                  << std::endl;
+        ROS_WARN("[ros] Server control id %d does not match sensors id %d\n", control_id, sensors.id);
       }
     }
     auto recv_t = std::chrono::system_clock::now();
@@ -56,31 +58,68 @@ int main(int argc, char * argv[])
     std::cout << "send_dt: " << send_dt.count() * 1000 << ", recv_dt: " << recv_dt.count() * 1000
               << ", control_id: " << control_id << "\n";
     sensors.id += 1;
-    usleep(200000);
+    // 2ms
+    usleep(2000);
   }
+
   return 0;
 }
 
 void imuCallback(const sensor_msgs::Imu::ConstPtr & msg)
 {
-  ROS_INFO("IMU received");
+  ROS_DEBUG("IMU received");
+  auto & sensors = Server->sensors().messages["dummy"];
+  // TODO: check [0,1,2] is [o.x, o.y, o.z]
+  sensors.orientation[0] = msg->orientation.x;
+  sensors.orientation[1] = msg->orientation.y;
+  sensors.orientation[2] = msg->orientation.z;
+  // TODO: check [0,1,2] is [a.x, a.y, a.z]
+  sensors.angularVelocity[0] = msg->angular_velocity.x;
+  sensors.angularVelocity[1] = msg->angular_velocity.y;
+  sensors.angularVelocity[2] = msg->angular_velocity.z;
+  // TODO: check same concern as above
+  sensors.linearAcceleration[0] = msg->linear_acceleration.x;
+  sensors.linearAcceleration[1] = msg->linear_acceleration.y;
+  sensors.linearAcceleration[2] = msg->linear_acceleration.z;
 }
+
 void jointCallback(const sensor_msgs::JointState::ConstPtr & msg)
 {
-  ROS_INFO("joint received");
+  ROS_DEBUG("joint received");
+  auto & sensors = Server->sensors().messages["dummy"];
+  // TODO: where to put joint posotions? need extra definition in RobotSensors?
 }
+
 void leftFootCallback(const geometry_msgs::WrenchStamped::ConstPtr & msg)
 {
-  ROS_INFO("left foot received");
+  ROS_DEBUG("left foot received");
+  auto & sensors = Server->sensors().messages["dummy"];
+  // TODO: check order of data in fsensor
+  Reading[0] = msg->wrench.force.x;
+  Reading[1] = msg->wrench.force.y;
+  Reading[2] = msg->wrench.force.z;
+  Reading[3] = msg->wrench.torque.x;
+  Reading[4] = msg->wrench.torque.y;
+  Reading[5] = msg->wrench.torque.z;
+  sensors.fsensor("lfsensor", Reading);
 }
+
 void rightFootCallback(const geometry_msgs::WrenchStamped::ConstPtr & msg)
 {
-  ROS_INFO("right foot received");
+  ROS_DEBUG("right foot received");
+  auto & sensors = Server->sensors().messages["dummy"];
+  Reading[0] = msg->wrench.force.x;
+  Reading[1] = msg->wrench.force.y;
+  Reading[2] = msg->wrench.force.z;
+  Reading[3] = msg->wrench.torque.x;
+  Reading[4] = msg->wrench.torque.y;
+  Reading[5] = msg->wrench.torque.z;
+  sensors.fsensor("rfsensor", Reading);
 }
 
 void initSensors()
 {
-  auto & sensors = server->sensors().messages["ros"];
+  auto & sensors = Server->sensors().messages["ros"];
   sensors.encoders = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
   sensors.torques = {100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110};
   double reading[6];
